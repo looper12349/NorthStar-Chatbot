@@ -8,22 +8,22 @@ const intentKeywords = {
   ORDER_TRACKING: {
     high: ['track', 'order', 'package', 'shipment', 'delivery', 'arrive', 'arriving', 'shipped', 'tracking'],
     medium: ['where', 'status', 'dispatch', 'parcel', 'ship'],
-    low: ['my', 'is', 'when', 'find', 'check']
+    low: []
   },
   RETURNS: {
     high: ['return', 'refund', 'exchange', 'send back', 'return policy', 'returning'],
     medium: ['unused', 'packaging', '30 day', 'days', 'money back', 'policy'],
-    low: ['want', 'item', 'back', 'purchase', 'bought']
+    low: ['item', 'purchase', 'bought']
   },
   RECOMMEND: {
     high: ['recommend', 'suggest', 'looking for', 'help me find', 'what should', 'suggestion', 'advice'],
     medium: ['buy', 'need', 'gear', 'best', 'good', 'suitable', 'product', 'purchase'],
-    low: ['outdoor', 'hiking', 'camping', 'want', 'winter', 'climbing']
+    low: ['outdoor', 'hiking', 'camping', 'winter', 'climbing']
   },
   HUMAN_HANDOFF: {
     high: ['agent', 'human', 'person', 'representative', 'live', 'speak to', 'talk to', 'real person'],
     medium: ['help', 'connect', 'real', 'someone', 'support team', 'customer service'],
-    low: ['please', 'can', 'want', 'need']
+    low: []
   },
   GREETING: {
     high: ['hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening', 'howdy', 'sup', 'yo'],
@@ -49,7 +49,7 @@ const weights = {
 };
 
 const thresholds = {
-  ORDER_TRACKING: 2,
+  ORDER_TRACKING: 3,
   RETURNS: 2,
   RECOMMEND: 2,
   HUMAN_HANDOFF: 2,
@@ -107,25 +107,33 @@ function calculateScore(tokens, keywords) {
 
 /**
  * Extract order number from user input
- * Supports formats: #111, 111, "order 111", "order #111"
+ * Supports formats: #111, 111, "order 111", "order #111", "track 111"
+ *
+ * Deliberately does NOT match a bare 3+ digit number anywhere in a
+ * sentence (e.g. "I need 3000 dollars" or "meet me at 5 for 2023").
+ * Only recognized when the number IS the whole message, or sits next
+ * to an order/track keyword, so unrelated numeric text can't hijack
+ * the pipeline before intent recognition runs.
  * @param {string} input - User input
  * @returns {string|null} - Extracted order number or null
  */
 export function extractOrderNumber(input) {
-  // Pattern 1: #123 or just 123 (3+ digits)
-  const pattern1 = /#?(\d{3,})/;
-  const match1 = input.match(pattern1);
-  if (match1) {
-    return match1[1];
+  const trimmed = input.trim();
+
+  // Pattern 1: the whole message is just the number, e.g. "111" or "#111"
+  const bare = /^#?\s*(\d{3,})$/;
+  const bareMatch = trimmed.match(bare);
+  if (bareMatch) {
+    return bareMatch[1];
   }
-  
-  // Pattern 2: "order #123" or "order 123"
-  const pattern2 = /order\s*#?\s*(\d{3,})/i;
-  const match2 = input.match(pattern2);
-  if (match2) {
-    return match2[1];
+
+  // Pattern 2: "order #123", "order 123", "track 123", "tracking #123"
+  const withContext = /(?:order|track(?:ing)?)\s*#?\s*(\d{3,})/i;
+  const contextMatch = trimmed.match(withContext);
+  if (contextMatch) {
+    return contextMatch[1];
   }
-  
+
   return null;
 }
 
@@ -198,7 +206,11 @@ export function testIntentRecognizer() {
     "thanks",
     "thank you so much",
     "bye",
-    "goodbye"
+    "goodbye",
+    "where is my <abc>?",
+    "is this thing working?",
+    "I need 3000 dollars",
+    "meet me at 5 for 2023"
   ];
   
   console.log("Intent Recognition Test Results:");
