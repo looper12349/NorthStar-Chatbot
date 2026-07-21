@@ -12,7 +12,7 @@
  */
 
 import { recognizeIntent, extractOrderNumber } from './intentRecognizer';
-import { orderData } from '../data/mockData';
+import { orderData, shippingInfo } from '../data/mockData';
 import { responses } from '../data/responses';
 import { recommendationTree } from '../data/recommendationTree';
 
@@ -23,6 +23,7 @@ export const STATES = {
   AWAITING_ORDER_NUMBER: 'AWAITING_ORDER_NUMBER',
   ORDER_RESULT: 'ORDER_RESULT',
   RETURNS_INFO: 'RETURNS_INFO',
+  SHIPPING_INFO: 'SHIPPING_INFO',
   RECOMMEND_ACTIVITY: 'RECOMMEND_ACTIVITY',
   RECOMMEND_NEED: 'RECOMMEND_NEED',
   RECOMMEND_RESULT: 'RECOMMEND_RESULT',
@@ -178,6 +179,7 @@ function getFlowFromIntent(intent) {
   switch (intent) {
     case 'ORDER_TRACKING': return 'order_tracking';
     case 'RETURNS': return 'returns';
+    case 'SHIPPING': return 'shipping';
     case 'RECOMMEND': return 'recommend';
     case 'HUMAN_HANDOFF': return 'handoff';
     case 'GREETING': return 'main_menu';
@@ -268,7 +270,10 @@ function handleWithinFlow(userInput, state, context, fallbackCount, currentFlow)
       
     case STATES.RETURNS_INFO:
       return handleReturnsFollowup(userInput, fallbackCount, currentFlow);
-      
+
+    case STATES.SHIPPING_INFO:
+      return handleShippingFollowup(userInput, fallbackCount, currentFlow);
+
     case STATES.RECOMMEND_ACTIVITY:
       return handleActivitySelection(userInput, fallbackCount);
       
@@ -312,7 +317,19 @@ function routeToFlow(intent, currentState, fallbackCount) {
         newState: STATES.RETURNS_INFO,
         context: {}
       };
-      
+
+    case 'SHIPPING':
+      return {
+        messages: [responses.shipping.info],
+        quickReplies: [
+          { label: 'More Questions', value: 'more questions about shipping' },
+          { label: 'Track Order', value: 'track order' },
+          { label: 'Main Menu', value: 'main menu' }
+        ],
+        newState: STATES.SHIPPING_INFO,
+        context: {}
+      };
+
     case 'RECOMMEND':
       return {
         messages: [responses.recommendations.intro],
@@ -622,6 +639,76 @@ function handleReturnsFollowup(userInput, fallbackCount, currentFlow) {
 }
 
 /**
+ * Handle shipping follow-up
+ * POST-RESOLUTION RULES:
+ * - Standard shipping question → clarify standard timeframe
+ * - Expedited shipping question → clarify expedited timeframe
+ * - Order number / order tracking intent → switch to order tracking
+ * - Returns intent → switch to returns flow
+ * - Main menu → exit
+ * - Anything else → check intent or gentle fallback
+ */
+function handleShippingFollowup(userInput, fallbackCount, currentFlow) {
+  const lower = userInput.toLowerCase().trim();
+  const { intent } = recognizeIntent(userInput);
+
+  if (lower.includes('standard')) {
+    return {
+      messages: [`Standard shipping takes ${shippingInfo.standard} once your order ships.`],
+      quickReplies: [
+        { label: 'More Questions', value: 'more questions' },
+        { label: 'Talk to Agent', value: 'talk to agent' },
+        { label: 'Main Menu', value: 'main menu' }
+      ],
+      newState: STATES.SHIPPING_INFO,
+      context: {}
+    };
+  }
+
+  if (lower.includes('expedited') || lower.includes('express') || lower.includes('fast') || lower.includes('quick')) {
+    return {
+      messages: [`Expedited shipping takes ${shippingInfo.expedited} once your order ships.`],
+      quickReplies: [
+        { label: 'More Questions', value: 'more questions' },
+        { label: 'Talk to Agent', value: 'talk to agent' },
+        { label: 'Main Menu', value: 'main menu' }
+      ],
+      newState: STATES.SHIPPING_INFO,
+      context: {}
+    };
+  }
+
+  // Check if they want to switch to order tracking
+  if (intent === 'ORDER_TRACKING') {
+    return {
+      messages: [responses.orderTracking.prompt],
+      quickReplies: [
+        { label: 'Main Menu', value: 'main menu' }
+      ],
+      newState: STATES.AWAITING_ORDER_NUMBER,
+      context: {}
+    };
+  }
+
+  // Check if they want to switch to returns
+  if (intent === 'RETURNS') {
+    return {
+      messages: [responses.returns.policy],
+      quickReplies: [
+        { label: 'More Questions', value: 'more questions about returns' },
+        { label: 'Talk to Agent', value: 'talk to agent' },
+        { label: 'Main Menu', value: 'main menu' }
+      ],
+      newState: STATES.RETURNS_INFO,
+      context: {}
+    };
+  }
+
+  // Let intent detection handle other cases
+  return null;
+}
+
+/**
  * Handle activity selection for recommendations
  */
 function handleActivitySelection(userInput, fallbackCount) {
@@ -864,6 +951,8 @@ function handleFallback(fallbackCount, currentState, currentFlow) {
     fallbackMessage = "I didn't quite catch that. If you're trying to track an order, just give me the order number (like #111). Otherwise, here's what I can help with:";
   } else if (currentFlow === 'returns') {
     fallbackMessage = "I didn't quite catch that. If you have a question about our return policy, try asking about packaging, timeframe, or how to start a return. Or choose from:";
+  } else if (currentFlow === 'shipping') {
+    fallbackMessage = "I didn't quite catch that. If you have a question about shipping, try asking about standard or expedited delivery times. Or choose from:";
   } else if (currentFlow === 'recommend') {
     fallbackMessage = "I didn't quite catch that. If you want a product recommendation, let me know what activity you're interested in. Or choose from:";
   }

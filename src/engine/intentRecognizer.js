@@ -15,6 +15,11 @@ const intentKeywords = {
     medium: ['unused', 'packaging', '30 day', 'days', 'money back', 'policy'],
     low: ['item', 'purchase', 'bought']
   },
+  SHIPPING: {
+    high: ['shipping', 'expedited', 'expedited shipping', 'standard shipping', 'shipping options', 'shipping policy', 'shipping time', 'business days'],
+    medium: ['deliver', 'how long', 'how fast', 'shipping cost'],
+    low: ['fast', 'quick']
+  },
   RECOMMEND: {
     high: ['recommend', 'suggest', 'looking for', 'help me find', 'what should', 'suggestion', 'advice'],
     medium: ['buy', 'need', 'gear', 'best', 'good', 'suitable', 'product', 'purchase'],
@@ -51,6 +56,7 @@ const weights = {
 const thresholds = {
   ORDER_TRACKING: 3,
   RETURNS: 2,
+  SHIPPING: 3,
   RECOMMEND: 2,
   HUMAN_HANDOFF: 2,
   GREETING: 3,
@@ -210,7 +216,10 @@ export function testIntentRecognizer() {
     "where is my <abc>?",
     "is this thing working?",
     "I need 3000 dollars",
-    "meet me at 5 for 2023"
+    "meet me at 5 for 2023",
+    "what's your shipping policy",
+    "how long does shipping take",
+    "do you offer expedited shipping"
   ];
   
   console.log("Intent Recognition Test Results:");

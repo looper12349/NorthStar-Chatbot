@@ -3,6 +3,8 @@
  * All conversational responses organized by flow
  */
 
+import { shippingInfo } from './mockData';
+
 export const responses = {
   greeting: [
     "Hey there! Welcome to North Star Outdoors support.",
@@ -29,7 +31,17 @@ export const responses = {
 Start your return at northstaroutdoors.com/returns`,
     followUp: "Do you have any other questions about returns?"
   },
-  
+
+  shipping: {
+    info: `Here's our shipping breakdown:
+
+• Standard shipping: ${shippingInfo.standard}
+• Expedited shipping: ${shippingInfo.expedited}
+
+Times start once your order ships — track a specific order to see where it's at!`,
+    followUp: "Any other shipping questions?"
+  },
+
   recommendations: {
     intro: "I'd love to help you find the right gear! First — what activity are you shopping for?",
     specificNeed: "Great choice! What's your main priority?",
